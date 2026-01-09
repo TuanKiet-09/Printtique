@@ -1,78 +1,131 @@
-// 1. KHO KHAI BÁO: Nhập khẩu các công cụ cần dùng
-import React, { useEffect, useRef } from 'react'; 
-import * as fabric from 'fabric'; // Nhập thư viện đồ họa Fabric
+import React, { useEffect, useRef } from 'react';
+import * as fabric from 'fabric';
 
-// 2. KHU VỰC CHÍNH (COMPONENT): Đây là nơi tạo ra giao diện
 function App() {
-  
-  // Tạo một cái "móc" (ref) để dính code vào thẻ HTML
-  const canvasRef = useRef(null); 
-  const fabricCanvas = useRef(null); // Biến để lưu cái bảng vẽ
+  const canvasRef = useRef(null);
+  const fabricCanvas = useRef(null);
 
-  // useEffect: Chạy 1 lần duy nhất khi web vừa tải xong
-  useEffect(() => {
-    // Tạo ra một bảng vẽ (Canvas) kích thước 300x400
+useEffect(() => {
+    // 1. Khởi tạo Canvas (Giữ nguyên kích thước 500x600)
     const initCanvas = new fabric.Canvas(canvasRef.current, {
-      width: 300,
-      height: 400,
-      backgroundColor: 'transparent' // Nền trong suốt
+      width: 500,
+      height: 600,
+      backgroundColor: '#fff'
     });
 
-    fabricCanvas.current = initCanvas; // Lưu lại để dùng sau
+    fabricCanvas.current = initCanvas;
 
-    // Dọn dẹp khi tắt web (Quy tắc bắt buộc của React)
+    // 2. Nạp ảnh áo và ÉP DÃN ra toàn màn hình
+    fabric.Image.fromURL('/ao-thun.jpg').then((img) => {
+      
+      // Tính toán tỷ lệ để ảnh dãn ra vừa khít khung 500x600
+      // Dù ảnh gốc to hay nhỏ, nó cũng sẽ bị ép về đúng kích thước này
+      img.set({
+        originX: 'left', 
+        originY: 'top',
+        scaleX: initCanvas.width / img.width,   // Ép chiều ngang
+        scaleY: initCanvas.height / img.height  // Ép chiều dọc
+      });
+
+      // Gán làm hình nền
+      initCanvas.backgroundImage = img;
+      initCanvas.renderAll();
+    });
+
     return () => {
       initCanvas.dispose();
     }
   }, []);
 
-  // Hàm: Chức năng thêm chữ vào áo
-  const themChuVaoAo = () => {
-    // Tạo một đối tượng chữ
-    const chuMoi = new fabric.IText('Lớp 12A', {
-      left: 50,      // Cách trái 50px
-      top: 100,      // Cách trên 100px
-      fill: 'red',   // Màu đỏ
-      fontSize: 30   // Cỡ chữ
+  // Chức năng Thêm Chữ
+  const themChu = () => {
+    if (!fabricCanvas.current) return;
+    const chuMoi = new fabric.IText('Lớp Tôi', {
+      left: 200, top: 200, // Chỉnh vị trí xuất hiện cho đẹp
+      fontFamily: 'Arial',
+      fill: '#D81B60',
+      fontSize: 30
     });
-    
-    // Thêm chữ đó vào bảng vẽ
     fabricCanvas.current.add(chuMoi);
+    fabricCanvas.current.setActiveObject(chuMoi);
   };
 
-  // 3. KHU VỰC HIỂN THỊ (Giao diện người dùng nhìn thấy)
+  // Chức năng Upload Ảnh (Như bài cũ)
+  const xuLyUploadAnh = (e) => {
+    const fileAnh = e.target.files[0];
+    if (!fileAnh) return;
+
+    const reader = new FileReader();
+    reader.onload = async (f) => {
+      const data = f.target.result;
+      try {
+        const img = await fabric.Image.fromURL(data);
+        img.scaleToWidth(150); 
+        img.set({ left: 180, top: 250 }); // Đặt vị trí mặc định vào giữa ngực áo
+        fabricCanvas.current.add(img);
+        fabricCanvas.current.setActiveObject(img);
+      } catch (err) {
+        console.error(err);
+      }
+    };
+    reader.readAsDataURL(fileAnh);
+    e.target.value = '';
+  };
+
+  // Chức năng Lưu Ảnh (Bây giờ sẽ lưu cả áo!)
+  const luuAnh = () => {
+    if (!fabricCanvas.current) return;
+    
+    // Xuất toàn bộ Canvas ra ảnh
+    const dataURL = fabricCanvas.current.toDataURL({
+      format: 'png',
+      quality: 1,
+      multiplier: 1 // Giữ nguyên kích thước 500x600
+    });
+
+    const link = document.createElement('a');
+    link.download = 'mockup-ao-thun.png'; // Tên file tải về
+    link.href = dataURL;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   return (
-    <div style={{ padding: '20px', textAlign: 'center' }}>
-      <h1>Web Thiết Kế Áo - Bài 1</h1>
+    <div style={{ padding: '20px', textAlign: 'center', fontFamily: 'Arial' }}>
+      <h1>Web Thiết Kế Áo - Phiên bản Mockup</h1>
       
-      {/* Nút bấm */}
-      <button onClick={themChuVaoAo} style={{ padding: '10px 20px', fontSize: '16px', marginBottom: '20px', cursor: 'pointer' }}>
-        + Thêm Chữ
-      </button>
-
-      {/* Khu vực cái áo và bảng vẽ */}
-      <div style={{ position: 'relative', width: '500px', height: '600px', border: '1px solid #ccc', margin: '0 auto' }}>
+      {/* THANH CÔNG CỤ */}
+      <div style={{ marginBottom: '20px', display: 'flex', gap: '10px', justifyContent: 'center' }}>
+        <button onClick={themChu} style={btnStyle}>+ Thêm Chữ</button>
         
-        {/* Ảnh cái áo nền */}
-        <img 
-          src="pod-project\image\tshirt.jpeg" 
-          alt="Ao Thun"
-          style={{ width: '100%', height: '100%', objectFit: 'cover' }} 
-        />
-
-        {/* Bảng vẽ trong suốt đè lên ngực áo */}
-        <div style={{ 
-          position: 'absolute', 
-          top: '120px', 
-          left: '100px', 
-          border: '1px dashed blue' // Viền xanh để bạn dễ nhìn vùng in
-        }}>
-          <canvas ref={canvasRef} />
+        <div style={{ position: 'relative', overflow: 'hidden', display: 'inline-block' }}>
+           <button style={btnStyle}>+ Tải Ảnh Lên</button>
+           <input type="file" accept="image/*" onChange={xuLyUploadAnh}
+             style={{ position: 'absolute', left: 0, top: 0, opacity: 0, width: '100%', height: '100%', cursor: 'pointer' }} 
+           />
         </div>
 
+        <button onClick={luuAnh} style={{...btnStyle, backgroundColor: '#28a745'}}>
+          💾 Tải Ảnh Về (Cả Áo)
+        </button>
       </div>
+
+      {/* KHU VỰC HIỂN THỊ */}
+      {/* Bây giờ chỉ cần Canvas thôi, không cần thẻ img nền nữa */}
+      <div style={{ border: '1px solid #ccc', display: 'inline-block', boxShadow: '0 0 10px rgba(0,0,0,0.1)' }}>
+          <canvas ref={canvasRef} />
+      </div>
+
+      <p style={{marginTop: '10px', color: '#666', fontStyle: 'italic'}}>
+        Lưu ý: Bây giờ hình cái áo là một phần của bản vẽ, bạn có thể tải về trọn vẹn.
+      </p>
     </div>
   );
 }
+
+const btnStyle = {
+  padding: '10px 15px', backgroundColor: '#007bff', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold'
+};
 
 export default App;
